@@ -31,6 +31,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Space` `c` `r` | CodeRabbit code review |
 | `Ctrl` `g` `g` | Git diff (VS Code-style diffview, toggle open/close) |
 | `Ctrl` `p` | Open file (fuzzy finder) |
+| `Ctrl` `b` | Toggle file tree side panel |
 | `Space` `f` `g` | Search in repo (live grep) |
 | `z` `M` | Fold all |
 | `z` `R` | Unfold all |

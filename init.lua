@@ -138,6 +138,10 @@ require("lazy").setup({
         view = { width = 30, side = "left" },
         actions = { open_file = { quit_on_open = false } },
       })
+
+      -- Toggle the file tree side panel (VS Code-style sidebar).
+      vim.keymap.set("n", "<C-b>", "<cmd>NvimTreeToggle<cr>",
+        { silent = true, desc = "Toggle file tree" })
     end,
   },
 
