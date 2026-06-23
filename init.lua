@@ -171,7 +171,8 @@ require("lazy").setup({
       --   foo -- -g=*.lua            only .lua files
       --   foo -- -t py               only Python (rg filetype; see `rg --type-list`)
       --   foo -- -g=!*.test.js       exclude test files
-      --   foo -- src/components/     restrict to a folder
+      --   foo -- db/                 restrict to a folder (positional path — simplest)
+      --   foo -- -g=db/**            restrict to a folder via glob (note: -g=db/ alone matches nothing)
       --   foo -- -g=*.{ts,tsx} src/  combine extension + folder
       { "<leader>fg", function() require("snacks").picker.grep() end, desc = "Grep in project" },
       { "<leader>/", function() require("snacks").picker.grep() end, desc = "Grep in project" },

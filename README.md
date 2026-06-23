@@ -49,8 +49,11 @@ Everything typed after ` -- ` is passed to ripgrep as raw flags:
 | `foo -- -g=*.lua` | Only `.lua` files |
 | `foo -- -t py` | Only Python (rg filetype; see `rg --type-list`) |
 | `foo -- -g=!*.test.js` | Exclude test files |
-| `foo -- src/components/` | Restrict to a folder |
+| `foo -- db/` | Restrict to a folder (positional path — simplest) |
+| `foo -- -g=db/**` | Restrict to a folder via glob |
 | `foo -- -g=*.{ts,tsx} src/` | Combine extension + folder |
+
+> **Folder filters:** the easy way is a positional path with a trailing slash (`foo -- db/`). If you reach for a glob instead, remember `-g=db/` matches the *directory entry only* and finds nothing — you need the recursive `-g=db/**` to match files inside it.
 
 ## Copying within Neovim
 
