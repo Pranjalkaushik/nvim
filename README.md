@@ -37,6 +37,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Ctrl` `v` | Open in vertical split (in picker) |
 | `Ctrl` `x` | Open in horizontal split (in picker) |
 | `Ctrl` `Space` | Autocomplete (open completion menu / show docs) |
+| `Ctrl` `w` `d` | Show full diagnostic (LSP error/warning) for the current line in a float |
 
 ### Search filters (`Space` `f` `g`)
 

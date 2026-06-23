@@ -1,6 +1,25 @@
 vim.opt.termguicolors = false
 vim.opt.mouse = "a"
 
+-- Insert mode uses a blinking block cursor (default is a vertical bar).
+vim.opt.guicursor = "n-v-c:block,i-ci-ve:block-blinkwait350-blinkoff200-blinkon125,r-cr:hor20,o:hor50"
+
+-- Transparent background: let the terminal's own background show through instead
+-- of nvim painting its own. termguicolors is off, so the terminal renders via the
+-- 256-color palette and the attribute that matters is ctermbg (not guibg). Clearing
+-- it on these groups makes the editor, gutters, and floating windows transparent.
+-- Wrapped in a ColorScheme autocmd so it re-applies if a colorscheme is ever loaded.
+local function make_transparent()
+  for _, group in ipairs({
+    "Normal", "NormalNC", "NormalFloat", "FloatBorder", "SignColumn",
+    "LineNr", "FoldColumn", "EndOfBuffer", "NonText",
+  }) do
+    vim.api.nvim_set_hl(0, group, { ctermbg = "NONE", bg = "NONE" })
+  end
+end
+vim.api.nvim_create_autocmd("ColorScheme", { callback = make_transparent })
+make_transparent()
+
 -- Leader must be set before plugins load so <leader>-based keymaps register correctly.
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
