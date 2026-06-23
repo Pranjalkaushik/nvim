@@ -21,7 +21,6 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | [mason-org/mason-lspconfig.nvim](https://github.com/mason-org/mason-lspconfig.nvim) | Bridges mason ↔ lspconfig; auto-enables installed servers. |
 | [smnatale/coderabbit.nvim](https://github.com/smnatale/coderabbit.nvim) | AI code review via the CodeRabbit CLI; findings surface as diagnostics. |
 
-> Exact pinned commits live in `lazy-lock.json`.
 
 ## Shortcuts
 
