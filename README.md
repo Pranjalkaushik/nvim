@@ -40,6 +40,25 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Ctrl` `Space` | Autocomplete (open completion menu / show docs) |
 | `Ctrl` `w` `d` | Show full diagnostic (LSP error/warning) for the current line in a float |
 
+### LSP (code navigation)
+
+> These attach per-buffer only once a language server is serving the file, so they exist exactly where LSP is available.
+
+| Keys | Action |
+| --- | --- |
+| `g` `d` | Go to definition |
+| `g` `D` | Go to declaration |
+| `g` `i` | Go to implementation |
+| `g` `y` | Go to type definition |
+| `g` `r` | List references |
+| `K` | Hover docs |
+| `Space` `r` `n` | Rename symbol |
+| `Space` `c` `a` | Code action |
+| `Ctrl` `LeftClick` | Go to definition (mouse) |
+| `Ctrl` `RightClick` | Jump back |
+| `Ctrl` `o` | Jump back (keyboard) |
+| `Ctrl` `i` | Jump forward |
+
 ### Search filters (`Space` `f` `g`)
 
 Everything typed after ` -- ` is passed to ripgrep as raw flags:
