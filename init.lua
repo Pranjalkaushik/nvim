@@ -1,20 +1,31 @@
-vim.opt.termguicolors = false
+-- True color: required by the guts.nvim colorscheme, which defines only GUI
+-- (hex) colors and no 256-color/cterm fallbacks. Your terminal (Windows
+-- Terminal under WSL) supports truecolor, so syntax renders with guts' palette.
+vim.opt.termguicolors = true
 vim.opt.mouse = "a"
 
 -- Insert mode uses a blinking block cursor (default is a vertical bar).
 vim.opt.guicursor = "n-v-c:block,i-ci-ve:block-blinkwait350-blinkoff200-blinkon125,r-cr:hor20,o:hor50"
 
 -- Transparent background: let the terminal's own background show through instead
--- of nvim painting its own. termguicolors is off, so the terminal renders via the
--- 256-color palette and the attribute that matters is ctermbg (not guibg). Clearing
--- it on these groups makes the editor, gutters, and floating windows transparent.
--- Wrapped in a ColorScheme autocmd so it re-applies if a colorscheme is ever loaded.
+-- of nvim (or the colorscheme) painting its own. We clear BOTH bg (guibg, the
+-- attribute that matters now that termguicolors is on) and ctermbg, so the editor,
+-- gutters, and floating windows stay transparent regardless. This runs on a
+-- ColorScheme autocmd so it re-applies after guts (below) loads — meaning guts'
+-- syntax colors show over a transparent background. To instead use guts' own dark
+-- background, drop "Normal"/"NormalNC"/"NormalFloat" from the list below.
 local function make_transparent()
   for _, group in ipairs({
     "Normal", "NormalNC", "NormalFloat", "FloatBorder", "SignColumn",
     "LineNr", "FoldColumn", "EndOfBuffer", "NonText",
   }) do
-    vim.api.nvim_set_hl(0, group, { ctermbg = "NONE", bg = "NONE" })
+    -- Resolve the group's real attributes (link = false follows any link) so we
+    -- keep guts' foreground color and only strip the background. Plain set_hl
+    -- with just bg would replace the whole group and discard the fg.
+    local hl = vim.api.nvim_get_hl(0, { name = group, link = false })
+    hl.bg = "NONE"
+    hl.ctermbg = "NONE"
+    vim.api.nvim_set_hl(0, group, hl)
   end
 end
 vim.api.nvim_create_autocmd("ColorScheme", { callback = make_transparent })
@@ -96,6 +107,20 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
+  -- guts.nvim: Berserk-inspired muted colorscheme. Truecolor only (needs the
+  -- termguicolors=true set at the top of this file). Loaded eagerly at startup
+  -- with a high priority so the colors are applied before other UI plugins draw.
+  -- Applying it fires the ColorScheme autocmd above, which re-asserts the
+  -- transparent background over guts' palette.
+  {
+    "vossenwout/guts.nvim",
+    lazy = false,
+    priority = 1100,
+    config = function()
+      vim.cmd.colorscheme("guts")
+    end,
+  },
+
   -- Treesitter: language-aware syntax tree used for highlighting and, here,
   -- for folding (`foldexpr = vim.treesitter.foldexpr`). `zM`/`zR` then fold
   -- and unfold real functions/classes rather than indentation guesses.
@@ -117,6 +142,22 @@ require("lazy").setup({
         indent = { enable = true },
       })
     end,
+  },
+
+  -- smart-paste: pasted code lands at the correct indent level automatically.
+  -- Wraps p/P/gp/gP (and visual-line paste) so linewise registers are re-indented
+  -- to the cursor's context; adds ]p/[p to drop charwise content onto a new
+  -- indented line. Indent is detected via indentexpr -> treesitter -> heuristics
+  -- (treesitter is already loaded above), and registers are read without being
+  -- clobbered, so it composes with clipboard=unnamedplus. Loads on VeryLazy so the
+  -- p/P remaps are in place before you paste. Escape hatches:
+  -- <Plug>(smart-paste-raw-p) / <Plug>(smart-paste-raw-P) for a raw paste.
+  {
+    "nemanjamalesija/smart-paste.nvim",
+    event = "VeryLazy",
+    opts = {
+      exclude_filetypes = {},  -- filetypes that skip smart indent (e.g. "markdown")
+    },
   },
 
   {
@@ -149,7 +190,24 @@ require("lazy").setup({
   -- Uses the snacks.nvim picker + ripgrep.
   {
     "folke/snacks.nvim",
+    -- Load at startup (not lazily on a keypress) so the indent guides and smooth
+    -- scroll below are active the moment a file opens. priority puts it before
+    -- other start plugins. The picker keymaps still work the same.
+    lazy = false,
+    priority = 1000,
     opts = {
+      -- Indent guides: subtle vertical lines per indent level, with the current
+      -- scope (the block the cursor is in) drawn brighter and animated as you move.
+      indent = {
+        enabled = true,
+        animate = { enabled = true },   -- the scope underline grows in
+      },
+      -- Smooth scroll: <C-d>/<C-u>/<C-f> and friends glide instead of jumping,
+      -- so it's easy to keep your place. Short duration keeps it snappy.
+      scroll = {
+        enabled = true,
+        animate = { duration = { step = 10, total = 150 } },
+      },
       picker = {
         enabled = true,
         -- Show every file in the pickers: hidden = dotfiles (.github/, .gitignore),
@@ -346,7 +404,9 @@ require("lazy").setup({
           end
 
           -- Keyboard navigation.
-          map("gd", vim.lsp.buf.definition, "Go to definition")
+          -- gd is defined GLOBALLY in the lspeek spec (peek definition / open at
+          -- the far edge when already peeking), so it isn't mapped here. The
+          -- Ctrl+Click mapping below still does a direct jump.
           map("gD", vim.lsp.buf.declaration, "Go to declaration")
           map("gi", vim.lsp.buf.implementation, "Go to implementation")
           map("gy", vim.lsp.buf.type_definition, "Go to type definition")
@@ -371,6 +431,110 @@ require("lazy").setup({
     end,
   },
 
+  -- lspeek: preview LSP definitions in a read-only floating window instead of
+  -- jumping straight there. Wired into `gd` below (in the LspAttach block): the
+  -- first `gd` opens the float; pressing `gd` again inside the float opens the
+  -- target in a separate window at the FAR EDGE of the layout (not in the
+  -- selected window's place). The orientation of that window is chosen to
+  -- balance the current layout: a HORIZONTAL split only when there are fewer
+  -- horizontal splits than vertical ones, otherwise a VERTICAL split (so a tie
+  -- or a single unsplit window opens vertically). Other in-float keys keep their
+  -- defaults: s = split, v = vsplit, t = tab, <CR> = open in the current window,
+  -- q = close, [ / ] = cycle stacked previews. Loads on LspAttach so setup() and
+  -- the gd override are ready before you ever press gd.
+  {
+    "r4ppz/lspeek.nvim",
+    event = "LspAttach",
+    config = function()
+      require("lspeek").setup({})  -- defaults; in-float split=s, vsplit=v
+
+      -- Only real editor windows should influence the orientation. Side panels
+      -- (nvim-tree, the blame panel, quickfix, help, terminals) are themselves
+      -- splits and would otherwise skew the count — e.g. an open nvim-tree is a
+      -- vertical split, which alone would force the first jump to go horizontal.
+      local function is_editor_win(winid)
+        if not vim.api.nvim_win_is_valid(winid) then return false end
+        if vim.api.nvim_win_get_config(winid).relative ~= "" then return false end -- float
+        return vim.bo[vim.api.nvim_win_get_buf(winid)].buftype == ""
+      end
+
+      -- Count existing splits from the window-layout tree, ignoring non-editor
+      -- windows. winlayout() nests windows as 'col' (stacked = horizontal splits)
+      -- and 'row' (side-by-side = vertical splits). We first prune leaves that
+      -- aren't editor windows, collapsing single-child containers, then count what
+      -- remains — so the counts describe just the file windows the jump splits.
+      local function count_splits()
+        local function prune(node)
+          if node[1] == "leaf" then
+            return is_editor_win(node[2]) and node or nil
+          end
+          local kept = {}
+          for _, child in ipairs(node[2]) do
+            local p = prune(child)
+            if p then kept[#kept + 1] = p end
+          end
+          if #kept == 0 then return nil end
+          if #kept == 1 then return kept[1] end  -- collapse away the divider
+          return { node[1], kept }
+        end
+
+        local h, v = 0, 0
+        local function walk(node)
+          if not node or node[1] == "leaf" then return end
+          if node[1] == "col" then
+            h = h + (#node[2] - 1)
+          elseif node[1] == "row" then
+            v = v + (#node[2] - 1)
+          end
+          for _, child in ipairs(node[2]) do walk(child) end
+        end
+        walk(prune(vim.fn.winlayout()))
+        return h, v
+      end
+
+      -- Track which floating windows are lspeek previews. lspeek shows the real
+      -- file buffer in its float, so we must NOT add buffer-local keymaps to it
+      -- (they would linger on the actual file after the preview closes). Instead
+      -- we wrap the preview constructor only to record the float's window id, and
+      -- drive everything from a single global gd that checks this set.
+      local preview_wins = {}
+      local window = require("lspeek.window")
+      local create_preview = window.create_preview_floating_window
+      window.create_preview_floating_window = function(source, target)
+        local preview = create_preview(source, target)
+        if preview and preview.win then
+          preview_wins[preview.win] = true
+          vim.api.nvim_create_autocmd("WinClosed", {
+            pattern = tostring(preview.win),
+            once = true,
+            callback = function() preview_wins[preview.win] = nil end,
+          })
+        end
+        return preview
+      end
+
+      -- One GLOBAL gd, so it never sticks to a file buffer:
+      --   * inside a lspeek preview float -> open the target in a layout-balanced
+      --     split at the FAR EDGE. We delegate to lspeek's own split (s) / vsplit
+      --     (v) action (its buffer-local keymaps are live while the float is up),
+      --     then move the new window with <C-w>J (far bottom) / <C-w>L (far right).
+      --   * anywhere else -> peek the definition in the float.
+      vim.keymap.set("n", "gd", function()
+        if preview_wins[vim.api.nvim_get_current_win()] then
+          local h, v = count_splits()
+          local km = require("lspeek.config").options.keymaps
+          local horizontal = h < v
+          local keys = (horizontal and km.split or km.vsplit)
+            .. (horizontal and "<C-w>J" or "<C-w>L")
+          vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes(keys, true, false, true), "m", false)
+        else
+          require("lspeek").peek_definition()
+        end
+      end, { desc = "Peek definition (lspeek) / open at far edge while peeking" })
+    end,
+  },
+
   -- CodeRabbit: AI code review via the CodeRabbit CLI; findings as diagnostics.
   {
     "smnatale/coderabbit.nvim",
@@ -389,6 +553,62 @@ require("lazy").setup({
         base = "master",     -- diff against master
         type = "committed",  -- only committed changes (HEAD vs master); ignores staged/working tree
       },
+    },
+  },
+
+  -- vi-sql: a TUI for managing SQL databases, run inside a floating terminal.
+  -- setup() registers :ViSQL (open/toggle the window — the process keeps running
+  -- in the background when hidden) and :ViSQLJump schema/table (open and jump
+  -- straight to a table). The vi-sql binary isn't bundled: on first :ViSQL it
+  -- prompts to auto-install via `curl | sh` (curl is present on this machine).
+  -- hide_key works because `stty -ixon` above frees <C-q> from flow control.
+  {
+    "kopecmaciej/vi-sql.nvim",
+    cmd = { "ViSQL", "ViSQLJump" },
+    keys = {
+      { "<leader>vs", "<cmd>ViSQL<cr>", desc = "Open vi-sql (SQL TUI)" },
+    },
+    opts = {
+      hide_key = "<C-q>",  -- press in the vi-sql terminal to hide it back to nvim
+      width = 0.9,         -- floating window size as a fraction of the editor
+      height = 0.9,
+      -- connection = "mydb",  -- optional: passed to vi-sql as --connection-name
+    },
+  },
+
+  -- which-key: after you press a prefix (e.g. <Space> or g) and pause, a popup
+  -- lists every key that can follow and what it does. Great for rediscovering the
+  -- <leader>g…/<leader>f… maps without grepping this file. <leader>? shows the
+  -- maps active in the current buffer (handy for LSP maps, which attach per-buffer).
+  {
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    opts = {},
+    keys = {
+      {
+        "<leader>?",
+        function() require("which-key").show({ global = false }) end,
+        desc = "Buffer-local keymaps (which-key)",
+      },
+    },
+  },
+
+  -- fidget: a small spinner/notification in the bottom-right showing LSP progress
+  -- (e.g. pyright indexing) so long operations aren't silent. Loads with the LSP.
+  {
+    "j-hui/fidget.nvim",
+    event = "LspAttach",
+    opts = {},
+  },
+
+  -- duck: pure whimsy. <leader>dd hatches a duck that waddles across the buffer;
+  -- <leader>dk cooks (removes) the most recent one. Does nothing useful — that's
+  -- the point. Press dd a few times for a flock.
+  {
+    "tamton-aquib/duck.nvim",
+    keys = {
+      { "<leader>dd", function() require("duck").hatch() end, desc = "Hatch a duck 🦆" },
+      { "<leader>dk", function() require("duck").cook() end, desc = "Cook a duck" },
     },
   },
 })
