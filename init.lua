@@ -152,6 +152,13 @@ require("lazy").setup({
     opts = {
       picker = {
         enabled = true,
+        -- Show every file in the pickers: hidden = dotfiles (.github/, .gitignore),
+        -- ignored = gitignored files (node_modules/, build artifacts). snacks
+        -- filters both out by default; turn them on so nothing is hidden.
+        sources = {
+          files = { hidden = true, ignored = true },
+          smart = { hidden = true, ignored = true },
+        },
         -- snacks opens splits with <C-s> (horizontal) / <C-v> (vertical) by
         -- default. Add <C-x> -> horizontal split too (Telescope/VS Code muscle
         -- memory). Bound in both the input and list windows so it works whether
@@ -201,9 +208,33 @@ require("lazy").setup({
         map("<leader>gp", gs.preview_hunk, "Preview hunk")
         map("<leader>gs", gs.stage_hunk, "Stage hunk")
         map("<leader>gr", gs.reset_hunk, "Reset hunk")
-        map("<leader>gb", function() gs.blame_line({ full = true }) end, "Blame line")
+        -- Note: <leader>gb is the full blame panel (blame.nvim, below). The
+        -- single-line popup lives on <leader>gl to avoid clashing with it.
+        map("<leader>gl", function() gs.blame_line({ full = true }) end, "Blame line (popup)")
         map("<leader>gd", gs.diffthis, "Diff this")
       end,
+    },
+  },
+
+  -- Git blame: VS Code GitLens-style toggleable side panel. Opens a column to
+  -- the left of the buffer where every line shows the commit that last touched
+  -- it (author + date), scroll-synced with the file. <leader>gt toggles it;
+  -- inside the panel <CR> opens the commit, and the usual close keys dismiss it.
+  {
+    "FabijanZulj/blame.nvim",
+    cmd = { "BlameToggle" },
+    keys = {
+      { "<leader>gb", "<cmd>BlameToggle<cr>", desc = "Toggle git blame panel" },
+    },
+    opts = {
+      -- "window" = the left-hand panel (the VS Code look). ("virtual" would
+      -- instead overlay end-of-line virtual text, which you didn't want.)
+      blame_options = { "-w" },           -- ignore whitespace-only changes
+      date_format = "%Y-%m-%d %H:%M",
+      merge_consecutive = false,          -- show the date on every line, not just hunk starts
+      max_summary_width = 30,
+      commit_detail_view = "vsplit",      -- <CR> opens the full commit beside the file
+      focus_blame = true,                 -- move the cursor into the panel on open
     },
   },
 

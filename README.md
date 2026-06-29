@@ -11,7 +11,8 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | [nvim-tree/nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua) | File explorer sidebar. |
 | [nvim-tree/nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) | File-type icons (used by nvim-tree & diffview). |
 | [folke/snacks.nvim](https://github.com/folke/snacks.nvim) | Fuzzy finder / picker — file search (`Ctrl+P`) and project-wide grep (ripgrep). |
-| [lewis6991/gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) | Inline git signs, hunk staging/preview/reset, line blame. |
+| [lewis6991/gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) | Inline git signs, hunk staging/preview/reset, single-line blame popup. |
+| [FabijanZulj/blame.nvim](https://github.com/FabijanZulj/blame.nvim) | VS Code GitLens-style toggleable blame panel (author + date per line, scroll-synced). |
 | [tpope/vim-fugitive](https://github.com/tpope/vim-fugitive) | Full git command surface (`:Git`, `:Gdiffsplit`, `:Gblame`, …). |
 | [sindrets/diffview.nvim](https://github.com/sindrets/diffview.nvim) | VS Code-style side-by-side git diff & review UI. |
 | [saghen/blink.cmp](https://github.com/saghen/blink.cmp) | As-you-type completion popup with fuzzy matching. |
@@ -30,6 +31,13 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | --- | --- |
 | `Space` `c` `r` | CodeRabbit code review |
 | `Ctrl` `g` `g` | Git diff (VS Code-style diffview, toggle open/close) |
+| `Space` `g` `b` | Toggle git blame panel (author + date per line; `Enter` in the panel opens the commit) |
+| `Space` `g` `l` | Blame the current line in a popup (full commit) |
+| `Space` `g` `p` | Preview the git hunk under the cursor |
+| `Space` `g` `s` | Stage the hunk under the cursor |
+| `Space` `g` `r` | Reset the hunk under the cursor |
+| `Space` `g` `d` | Diff the current file |
+| `]` `c` / `[` `c` | Jump to next / previous git hunk |
 | `Ctrl` `p` | Open file (fuzzy finder) |
 | `Alt` `i` | Toggle ignored/hidden files in the file search |
 | `Ctrl` `b` | Toggle file tree side panel |
