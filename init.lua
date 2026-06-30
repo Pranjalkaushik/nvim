@@ -568,6 +568,22 @@ require("lazy").setup({
     keys = {
       { "<leader>vs", "<cmd>ViSQL<cr>", desc = "Open vi-sql (SQL TUI)" },
     },
+    -- Portable keybindings: vi-sql reads $XDG_CONFIG_HOME/vi-sql (default
+    -- ~/.config/vi-sql). We keep our customized keybindings-vim.yaml versioned in
+    -- this repo (nvim/vi-sql/) and symlink it into that dir on startup, so cloning
+    -- this config to any PC gets the same vi-sql bindings. config.yaml (DB
+    -- connections + plaintext passwords) is deliberately NOT versioned — it stays
+    -- a local, per-machine file that vi-sql generates on first run.
+    init = function()
+      local src = vim.fn.stdpath("config") .. "/vi-sql/keybindings-vim.yaml"
+      if not vim.uv.fs_stat(src) then return end
+      local dir = (vim.env.XDG_CONFIG_HOME or (vim.env.HOME .. "/.config")) .. "/vi-sql"
+      local dst = dir .. "/keybindings-vim.yaml"
+      if vim.uv.fs_readlink(dst) == src then return end  -- already linked
+      vim.fn.mkdir(dir, "p")
+      vim.fn.delete(dst)  -- drop a stale file/symlink if one exists
+      vim.uv.fs_symlink(src, dst)
+    end,
     opts = {
       hide_key = "<C-q>",  -- press in the vi-sql terminal to hide it back to nvim
       width = 0.9,         -- floating window size as a fraction of the editor

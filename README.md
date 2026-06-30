@@ -67,6 +67,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | Keys | Action |
 | --- | --- |
 | `g` `d` | Peek definition in a float (lspeek); press `g` `d` again to open it at the far edge |
+| `q` | Close the floating peek window (lspeek default; works for free, no mapping needed) |
 | `g` `D` | Go to declaration |
 | `g` `i` | Go to implementation |
 | `g` `y` | Go to type definition |
@@ -106,3 +107,37 @@ Yank/cut into the clipboard, then paste back later. (`clipboard=unnamedplus` is 
 | `y$` | Copy to end of line |
 | `p` | Paste (re-indented to context by smart-paste) |
 | `]` `p` / `[` `p` | Paste charwise content onto a new, indented line |
+
+## vi-sql (SQL TUI)
+
+Open with `Space` `v` `s` (`:ViSQL`). Once it's up you're inside the vi-sql TUI, so
+its **own** keys apply — not Neovim's. The bindings below are versioned in this repo at
+[`vi-sql/keybindings-vim.yaml`](vi-sql/keybindings-vim.yaml) and symlinked into vi-sql's
+config dir (`$XDG_CONFIG_HOME/vi-sql`) automatically on startup, so any machine that
+clones this config gets the same keys. `config.yaml` (DB connections + passwords) is
+deliberately **not** versioned — vi-sql generates it locally on first run.
+
+> Rows marked ✎ are customizations on top of vi-sql's vim defaults.
+
+| Keys | Action |
+| --- | --- |
+| `h` `j` `k` `l` / arrows | Move within the focused pane |
+| `Ctrl` + `h/j/k/l` **or `Ctrl`+arrows** ✎ | Move focus between panes |
+| `Ctrl` `p` ✎ / `g` `t` | Go to / search for a table (then `Enter` to open) |
+| `Enter` / `Space` | Select table / peek row |
+| `/` | Filter the current list |
+| `g` `e` | Focus the schema tree |
+| `e` / `s` / `i` | Expand table / open structure / open indexes |
+| `g` `d` / `g` `r` | Follow foreign key / find references |
+| `Ctrl` `t` / `Ctrl` `x` | New tab / close tab |
+| `Ctrl` `s` | Confirm / run query |
+| `Ctrl` `r` | Refresh |
+| `Ctrl` `o` | Open connections page |
+| `Esc` | Close / back |
+| `F1` | Full-screen help |
+| `Ctrl` `q` | Hide vi-sql back to Neovim (process keeps running) |
+| `Ctrl` `c` | Quit vi-sql |
+
+> `Ctrl`+arrow keys depend on your terminal emitting distinct codes for them; if they
+> don't register, the `Ctrl`+`h/j/k/l` equivalents always work. Autocomplete-up in the
+> query editor moved from `Ctrl`+`p` to the `Up` arrow (since `Ctrl`+`p` now jumps to a table).
