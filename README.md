@@ -7,10 +7,12 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | Plugin | Purpose |
 | --- | --- |
 | [folke/lazy.nvim](https://github.com/folke/lazy.nvim) | Plugin manager (bootstraps itself on first launch). |
+| [vossenwout/guts.nvim](https://github.com/vossenwout/guts.nvim) | Berserk-inspired muted colorscheme (truecolor; transparent background kept). |
 | [nvim-treesitter/nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) | Language-aware syntax highlighting + treesitter-based folding. |
 | [nvim-tree/nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua) | File explorer sidebar. |
 | [nvim-tree/nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) | File-type icons (used by nvim-tree & diffview). |
 | [folke/snacks.nvim](https://github.com/folke/snacks.nvim) | Fuzzy finder / picker (`Ctrl+P`, ripgrep), indent guides + scope highlight, and smooth scrolling. |
+| [nemanjamalesija/smart-paste.nvim](https://github.com/nemanjamalesija/smart-paste.nvim) | Re-indents pasted code to the cursor's context automatically. |
 | [folke/which-key.nvim](https://github.com/folke/which-key.nvim) | Popup that lists the keys following a prefix (press `<Space>` and wait). |
 | [j-hui/fidget.nvim](https://github.com/j-hui/fidget.nvim) | LSP progress spinner in the bottom-right corner. |
 | [tamton-aquib/duck.nvim](https://github.com/tamton-aquib/duck.nvim) | A 🦆 that waddles across the buffer. Purely for fun. |
@@ -23,7 +25,9 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | [neovim/nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) | LSP configuration (go-to-definition, hover, references, rename, …). |
 | [mason-org/mason.nvim](https://github.com/mason-org/mason.nvim) | Installs language servers (`pyright`, `lua_ls`, …). |
 | [mason-org/mason-lspconfig.nvim](https://github.com/mason-org/mason-lspconfig.nvim) | Bridges mason ↔ lspconfig; auto-enables installed servers. |
+| [r4ppz/lspeek.nvim](https://github.com/r4ppz/lspeek.nvim) | Peek LSP definitions in a floating window (`gd`); press `gd` again to open at the far edge. |
 | [smnatale/coderabbit.nvim](https://github.com/smnatale/coderabbit.nvim) | AI code review via the CodeRabbit CLI; findings surface as diagnostics. |
+| [kopecmaciej/vi-sql.nvim](https://github.com/kopecmaciej/vi-sql.nvim) | SQL database TUI in a floating terminal (`:ViSQL`). |
 
 
 ## Shortcuts
@@ -54,6 +58,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Space` `?` | Show the keymaps available in the current buffer (which-key) |
 | `Space` `d` `d` | Hatch a duck 🦆 (press a few times for a flock) |
 | `Space` `d` `k` | Cook (remove) the most recent duck |
+| `Space` `v` `s` | Open the vi-sql database TUI |
 
 ### LSP (code navigation)
 
@@ -61,7 +66,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 
 | Keys | Action |
 | --- | --- |
-| `g` `d` | Go to definition |
+| `g` `d` | Peek definition in a float (lspeek); press `g` `d` again to open it at the far edge |
 | `g` `D` | Go to declaration |
 | `g` `i` | Go to implementation |
 | `g` `y` | Go to type definition |
@@ -99,4 +104,5 @@ Yank/cut into the clipboard, then paste back later. (`clipboard=unnamedplus` is 
 | `yy` | Copy the current whole line |
 | `yw` | Copy from cursor to the start of the next word |
 | `y$` | Copy to end of line |
-| `p` | Paste |
+| `p` | Paste (re-indented to context by smart-paste) |
+| `]` `p` / `[` `p` | Paste charwise content onto a new, indented line |

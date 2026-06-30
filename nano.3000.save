@@ -1,0 +1,25 @@
+
+feature:
+user survay -> add skill
+skill new -> add to sanitize queue
+existing skill -> add to user skills
+skill from sanitize queue -> llm checks if it can be added to synonyms of existing skills or is a new valid skill
+if can be added to existing -> add to aka and add the og skill to user
+if new skill entirly -> create a new skill
+
+
+techinical details:
+add a method in CanonicalSkill to search skill by name ie in the name field also in synonyms field
+llm prompt to take a skill input and o/p valid CanonicalSkill data
+llm tool that pulls skills from table along with description -- param has limit that the llm will use to get data in chunks so to save token spend
+llm call (worker class) that has i/p skill entered by user and  o/p should be the canonical skill obj (existing/new) updated synonyms only if the input is very different from existing synonyms
+instead of static skills pass Jobs.skills to developer during survay (grouped by credit title)
+if user selects the skill from the given list add id to the obj -- in update_from_input of developerintentsurvay if we get id in skill add skill to dev else call searchskill of CanonicalSkill to get the skill obj; if still no skill then pass the data to llm call (using worker task and the WorkerTaskTarget set to the developer who created the skill)
+) to get a sanatize and get a new skill
+create a collect task to collect and create the sanatized skill and attach it to developer
+
+
+
+
+
+
