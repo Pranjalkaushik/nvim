@@ -13,7 +13,6 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | [nvim-tree/nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) | File-type icons (used by nvim-tree & diffview). |
 | [folke/snacks.nvim](https://github.com/folke/snacks.nvim) | Fuzzy finder / picker (`Ctrl+P`, ripgrep), indent guides + scope highlight, and smooth scrolling. |
 | [nemanjamalesija/smart-paste.nvim](https://github.com/nemanjamalesija/smart-paste.nvim) | Re-indents pasted code to the cursor's context automatically. |
-| [folke/which-key.nvim](https://github.com/folke/which-key.nvim) | Popup that lists the keys following a prefix (press `<Space>` and wait). |
 | [j-hui/fidget.nvim](https://github.com/j-hui/fidget.nvim) | LSP progress spinner in the bottom-right corner. |
 | [tamton-aquib/duck.nvim](https://github.com/tamton-aquib/duck.nvim) | A 🦆 that waddles across the buffer. Purely for fun. |
 | [lewis6991/gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) | Inline git signs, hunk staging/preview/reset, single-line blame popup. |
@@ -33,11 +32,18 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 ## Shortcuts
 
 > Leader key is `<Space>`.
+>
+> Rows marked **†** are **chord sequences**: press the keys one after another (tap and
+> release, then the next), *not* held down together. This matters most for the `Ctrl` `g` …
+> bindings — `Ctrl`+`g` is pressed and released first, then the following key. (Anything
+> starting with the `Space` leader is a sequence by nature and isn't separately marked.)
 
 | Keys | Action |
 | --- | --- |
 | `Space` `c` `r` | CodeRabbit code review |
-| `Ctrl` `g` `g` | Git diff (VS Code-style diffview, toggle open/close) |
+| `Ctrl` `g` `g` † | Git diff (VS Code-style diffview, toggle open/close) |
+| `Ctrl` `g` `↓` † | Jump to next git hunk (diff line below) |
+| `Ctrl` `g` `↑` † | Jump to previous git hunk (diff line above) |
 | `Space` `g` `b` | Toggle git blame panel (author + date per line; `Enter` in the panel opens the commit) |
 | `Space` `g` `l` | Blame the current line in a popup (full commit) |
 | `Space` `g` `p` | Preview the git hunk under the cursor |
@@ -55,7 +61,6 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Ctrl` `x` | Open in horizontal split (in picker) |
 | `Ctrl` `Space` | Autocomplete (open completion menu / show docs) |
 | `Ctrl` `w` `d` | Show full diagnostic (LSP error/warning) for the current line in a float |
-| `Space` `?` | Show the keymaps available in the current buffer (which-key) |
 | `Space` `d` `d` | Hatch a duck 🦆 (press a few times for a flock) |
 | `Space` `d` `k` | Cook (remove) the most recent duck |
 | `Space` `v` `s` | Open the vi-sql database TUI |

@@ -60,6 +60,11 @@ vim.keymap.set("n", "<C-Down>",  "<C-w>j", { silent = true })  -- down
 vim.keymap.set("n", "<C-Left>",  "<C-w>h", { silent = true })  -- left
 vim.keymap.set("n", "<C-Right>", "<C-w>l", { silent = true })  -- right
 
+-- Show the full diagnostic message (the E/W sign in the gutter) for the current
+-- line in a floating window. Default config shows only the sign + underline, not
+-- the text; this pops the message on demand. Use ]d / [d to jump between them.
+vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic message" })
+
 vim.keymap.set("n", "<C-s>",    "<C-w>s", { silent = true })  -- Horizontal split
 -- <C-s> is often swallowed by terminal flow control (XOFF); disable it so the
 -- key reaches Neovim (and nvim-tree's buffer-local <C-s> mapping below).
@@ -73,6 +78,32 @@ vim.cmd("silent !stty -ixon")
 -- from the treesitter highlighter. Parsing synchronously removes that race.
 -- Preview files are capped (~1MB) so the cost is imperceptible.
 vim.g._ts_force_sync_parsing = true
+
+-- Guard the actual frame that throws "attempt to call method 'range' (a nil value)"
+-- at runtime/lua/vim/treesitter.lua:197, where vim.treesitter.get_range() does
+-- `node:range(true)`. Several callers hand it a nil node when a tree is parsed
+-- against a buffer that changed underneath them: the blink.cmp documentation popup
+-- as you type (auto_show), get_node_text, and the snacks picker highlighter. The
+-- sync-parsing flag above only covers the core highlighter, not these paths.
+-- Wrapping get_range so a nil node yields an empty range (Range6 of zeros) makes
+-- that frame render nothing instead of crashing, for every caller at once.
+do
+  local get_range = vim.treesitter.get_range
+  local logged = false
+  vim.treesitter.get_range = function(node, source, metadata)
+    if node == nil then
+      -- One-shot: dump the call stack of the first nil-node hit so we can find the
+      -- exact caller. Remove this block once the path is identified.
+      if not logged then
+        logged = true
+        local f = io.open(vim.fn.stdpath("cache") .. "/ts_nil_node.log", "w")
+        if f then f:write(debug.traceback("get_range got nil node", 2)); f:close() end
+      end
+      return { 0, 0, 0, 0, 0, 0 }
+    end
+    return get_range(node, source, metadata)
+  end
+end
 
 -- Folding: visuals + sensible defaults so `zM` folds functions/classes nicely.
 -- Treesitter-based folds follow real syntax (functions/classes), set up per-buffer
@@ -88,7 +119,25 @@ vim.opt.fillchars:append({
   foldclose = "▸",  -- shown in the gutter when a fold is closed
   fold      = " ",  -- trailing fill on a folded line
   foldsep   = " ",  -- foldcolumn separator
+  -- Window separators. With laststatus=3 (below) there is no per-window
+  -- statusline to act as the divider between stacked windows, so draw an
+  -- explicit horizontal line (horiz) and the matching T/cross junctions where
+  -- it meets vertical splits. All use the WinSeparator highlight.
+  horiz     = "─",
+  horizup   = "┴",
+  horizdown = "┬",
+  vert      = "│",
+  vertleft  = "┤",
+  vertright = "├",
+  verthoriz = "┼",
 })
+
+-- One global statusline at the very bottom instead of one per window. This frees
+-- the row between horizontally-stacked windows for a real WinSeparator line, so
+-- horizontal splits get a visible divider matching the vertical ones (the old
+-- per-window statuslines were invisible here because the transparent theme
+-- leaves StatusLine with no background).
+vim.opt.laststatus = 3
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
@@ -227,6 +276,24 @@ require("lazy").setup({
         },
       },
     },
+    config = function(_, opts)
+      require("snacks").setup(opts)
+      -- Guard snacks' picker treesitter highlighter against a transient nil node.
+      -- The picker reuses one scratch buffer and stop/restarts treesitter on it as
+      -- you scroll, so query:iter_captures can yield a stale (nil) node. snacks then
+      -- feeds it to vim.treesitter.get_node_text -> get_range -> node:range(), which
+      -- crashes at runtime/lua/vim/treesitter.lua:197. This path runs its own
+      -- parser:parse(true), so vim.g._ts_force_sync_parsing (set above, for the core
+      -- highlighter) doesn't cover it, and upstream is unguarded. Wrap the public
+      -- entry point: a transient bad frame renders without TS highlights instead of
+      -- erroring. Override the module-table field so every require() call site sees it.
+      local hl = require("snacks.picker.util.highlight")
+      local get_highlights = hl.get_highlights
+      hl.get_highlights = function(...)
+        local ok, ret = pcall(get_highlights, ...)
+        return ok and ret or {}
+      end
+    end,
     keys = {
       -- Open any file, fuzzy, with recent/buffer recommendations (like VS Code Ctrl+P).
       { "<C-p>", function() require("snacks").picker.smart() end, desc = "Find files (smart)" },
@@ -263,6 +330,8 @@ require("lazy").setup({
         end
         map("]c", gs.next_hunk, "Next git hunk")
         map("[c", gs.prev_hunk, "Prev git hunk")
+        map("<C-g><Down>", gs.next_hunk, "Jump to git diff line below")
+        map("<C-g><Up>", gs.prev_hunk, "Jump to git diff line above")
         map("<leader>gp", gs.preview_hunk, "Preview hunk")
         map("<leader>gs", gs.stage_hunk, "Stage hunk")
         map("<leader>gr", gs.reset_hunk, "Reset hunk")
@@ -351,12 +420,25 @@ require("lazy").setup({
     ---@module 'blink.cmp'
     ---@type blink.cmp.Config
     opts = {
-      -- Keymap preset 'default': <C-y> accepts, <C-n>/<C-p> (or <Up>/<Down>)
+      -- Keymap preset 'super-tab': <Tab> accepts the selected entry, or selects
+      -- and accepts the first one when nothing is highlighted yet (VS Code style);
+      -- <Tab>/<S-Tab> also navigate. <C-y> accepts, <C-n>/<C-p> (or <Up>/<Down>)
       -- navigate, <C-space> opens the menu / shows docs, <C-e> hides it.
-      -- Swap to 'super-tab' for Tab-to-accept (VS Code style) or 'enter' for <CR>.
-      keymap = { preset = "default" },
+      keymap = { preset = "super-tab" },
       -- Show the documentation popup beside the menu automatically.
-      completion = { documentation = { auto_show = true, auto_show_delay_ms = 200 } },
+      -- treesitter_highlighting = false: blink's doc-popup highlighter parses the
+      -- code in the doc against a scratch buffer that changes as you keep typing,
+      -- and hands a stale (nil) node to vim.treesitter -> node:range(), crashing with
+      -- "attempt to call method 'range' (a nil value)" (.../vim/treesitter.lua:197).
+      -- Turning it off drops only syntax coloring inside the doc popup; the text and
+      -- markdown still render. This is the path that survived the get_range guard.
+      completion = {
+        documentation = {
+          auto_show = true,
+          auto_show_delay_ms = 200,
+          treesitter_highlighting = false,
+        },
+      },
       sources = { default = { "lsp", "path", "snippets", "buffer" } },
       -- Use the prebuilt Rust matcher; fall back to the Lua one (with a warning)
       -- if the binary is unavailable.
@@ -434,9 +516,9 @@ require("lazy").setup({
   -- lspeek: preview LSP definitions in a read-only floating window instead of
   -- jumping straight there. Wired into `gd` below (in the LspAttach block): the
   -- first `gd` opens the float; pressing `gd` again inside the float opens the
-  -- target in a separate window at the FAR EDGE of the layout (not in the
-  -- selected window's place). The orientation of that window is chosen to
-  -- balance the current layout: a HORIZONTAL split only when there are fewer
+  -- target in a split of the CURRENT window (the one gd was invoked from), not
+  -- pushed out to the far edge of the layout. The orientation of that split is
+  -- chosen to balance the current layout: a HORIZONTAL split only when there are fewer
   -- horizontal splits than vertical ones, otherwise a VERTICAL split (so a tie
   -- or a single unsplit window opens vertically). Other in-float keys keep their
   -- defaults: s = split, v = vsplit, t = tab, <CR> = open in the current window,
@@ -515,23 +597,23 @@ require("lazy").setup({
 
       -- One GLOBAL gd, so it never sticks to a file buffer:
       --   * inside a lspeek preview float -> open the target in a layout-balanced
-      --     split at the FAR EDGE. We delegate to lspeek's own split (s) / vsplit
-      --     (v) action (its buffer-local keymaps are live while the float is up),
-      --     then move the new window with <C-w>J (far bottom) / <C-w>L (far right).
+      --     split of the CURRENT window. We delegate to lspeek's own split (s) /
+      --     vsplit (v) action (its buffer-local keymaps are live while the float
+      --     is up); lspeek closes the float first, so the split lands on the
+      --     source window rather than spanning the whole layout.
       --   * anywhere else -> peek the definition in the float.
       vim.keymap.set("n", "gd", function()
         if preview_wins[vim.api.nvim_get_current_win()] then
           local h, v = count_splits()
           local km = require("lspeek.config").options.keymaps
           local horizontal = h < v
-          local keys = (horizontal and km.split or km.vsplit)
-            .. (horizontal and "<C-w>J" or "<C-w>L")
+          local keys = horizontal and km.split or km.vsplit
           vim.api.nvim_feedkeys(
             vim.api.nvim_replace_termcodes(keys, true, false, true), "m", false)
         else
           require("lspeek").peek_definition()
         end
-      end, { desc = "Peek definition (lspeek) / open at far edge while peeking" })
+      end, { desc = "Peek definition (lspeek) / open in a split of the current window while peeking" })
     end,
   },
 
@@ -589,23 +671,6 @@ require("lazy").setup({
       width = 0.9,         -- floating window size as a fraction of the editor
       height = 0.9,
       -- connection = "mydb",  -- optional: passed to vi-sql as --connection-name
-    },
-  },
-
-  -- which-key: after you press a prefix (e.g. <Space> or g) and pause, a popup
-  -- lists every key that can follow and what it does. Great for rediscovering the
-  -- <leader>g…/<leader>f… maps without grepping this file. <leader>? shows the
-  -- maps active in the current buffer (handy for LSP maps, which attach per-buffer).
-  {
-    "folke/which-key.nvim",
-    event = "VeryLazy",
-    opts = {},
-    keys = {
-      {
-        "<leader>?",
-        function() require("which-key").show({ global = false }) end,
-        desc = "Buffer-local keymaps (which-key)",
-      },
     },
   },
 
