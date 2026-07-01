@@ -65,6 +65,94 @@ vim.keymap.set("n", "<C-Right>", "<C-w>l", { silent = true })  -- right
 -- the text; this pops the message on demand. Use ]d / [d to jump between them.
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic message" })
 
+-- <C-q> dismisses any open floating window (LSP hover / K, diagnostic floats,
+-- lspeek previews, completion doc popups). By default <C-q> is just a synonym
+-- for <C-v> (visual-block), which is why it dropped into visual-block mode
+-- instead of closing the popup. <C-v> still gives visual-block. The `stty -ixon`
+-- below also frees <C-q> from terminal XON flow control so the key reaches nvim.
+vim.keymap.set("n", "<C-q>", function()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_config(win).relative ~= "" then
+      pcall(vim.api.nvim_win_close, win, false)
+    end
+  end
+end, { silent = true, desc = "Close floating window(s)" })
+
+-- Markdown preview: render the current file with the `glow` CLI inside a
+-- floating terminal. It's a static snapshot (re-open to refresh); glow's built-in
+-- pager handles scrolling and `q` quits, which auto-closes the float. Bound to
+-- <leader>mv, and also to the <C-v>v chord (press Ctrl+V, then v). That chord
+-- shadows blockwise-visual <C-v>: after Ctrl+V, nvim waits `timeoutlen` (default
+-- 1000ms) for a following v before falling back to plain <C-v>. Needs `glow` on
+-- PATH.
+local function glow_preview()
+  if vim.fn.executable("glow") == 0 then
+    vim.notify("glow not found on PATH -- install it to preview markdown", vim.log.levels.WARN)
+    return
+  end
+  local file = vim.api.nvim_buf_get_name(0)
+  if file == "" or not (vim.uv or vim.loop).fs_stat(file) then
+    vim.notify("No file on disk to preview", vim.log.levels.WARN)
+    return
+  end
+  local width  = math.floor(vim.o.columns * 0.9)
+  local height = math.floor(vim.o.lines * 0.9)
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+    style = "minimal",
+    border = "rounded",
+  })
+  vim.fn.termopen({ "glow", "-p", "-w", tostring(width - 4), file }, {
+    on_exit = function()
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end,
+  })
+  vim.cmd("startinsert")
+end
+
+vim.keymap.set("n", "<leader>mv", glow_preview, { silent = true, desc = "Preview markdown with glow" })
+vim.keymap.set("n", "<C-v>v",     glow_preview, { silent = true, desc = "Preview markdown with glow" })
+
+-- Bootstrap glow: keep a private copy of the CLI in nvim's data dir (no sudo)
+-- and prepend it to PATH so :terminal jobs find it. If it's missing, download the
+-- latest prebuilt release binary in the background on startup; the preview works
+-- once it lands. Cloning this config to a new machine self-heals the same way.
+local glow_bindir = vim.fn.stdpath("data") .. "/bin"
+if not string.find(":" .. (vim.env.PATH or "") .. ":", ":" .. glow_bindir .. ":", 1, true) then
+  vim.env.PATH = glow_bindir .. ":" .. (vim.env.PATH or "")
+end
+if vim.fn.executable("glow") == 0 and vim.fn.executable("curl") == 1 then
+  local script = [[
+set -e
+mkdir -p "$1"
+arch=$(uname -m)
+case "$arch" in aarch64) arch="arm64|aarch64" ;; x86_64) arch="x86_64|amd64" ;; esac
+url=$(curl -fsSL https://api.github.com/repos/charmbracelet/glow/releases/latest \
+      | grep -ioE '"browser_download_url": *"[^"]+"' | cut -d'"' -f4 \
+      | grep -iE 'linux' | grep -iE "$arch" | grep -iE '\.tar\.gz$' | head -1)
+test -n "$url"
+curl -fsSL "$url" | tar -xz -C "$1" --strip-components=1 --wildcards '*/glow'
+]]
+  vim.fn.jobstart({ "sh", "-c", script, "sh", glow_bindir }, {
+    on_exit = function(_, code)
+      vim.schedule(function()
+        if code == 0 then
+          vim.notify("glow installed to " .. glow_bindir, vim.log.levels.INFO)
+        else
+          vim.notify("glow auto-install failed (code " .. code .. ")", vim.log.levels.WARN)
+        end
+      end)
+    end,
+  })
+end
+
 vim.keymap.set("n", "<C-s>",    "<C-w>s", { silent = true })  -- Horizontal split
 -- <C-s> is often swallowed by terminal flow control (XOFF); disable it so the
 -- key reaches Neovim (and nvim-tree's buffer-local <C-s> mapping below).
@@ -691,5 +779,18 @@ require("lazy").setup({
       { "<leader>dd", function() require("duck").hatch() end, desc = "Hatch a duck 🦆" },
       { "<leader>dk", function() require("duck").cook() end, desc = "Cook a duck" },
     },
+  },
+
+  -- select-undo: undo only the changes inside a visual selection, leaving the
+  -- rest of the file untouched (built-in undo reverts whole change-steps). Select
+  -- lines and press `gu`, or a partial char selection and `gcu`. opts = {} runs
+  -- setup with defaults (mapping = true wires gu/gcu; persistent_undo = true).
+  {
+    "SunnyTamang/select-undo.nvim",
+    keys = {
+      { "gu", mode = "x", desc = "Selective undo (selected lines)" },
+      { "gcu", mode = "x", desc = "Selective undo (partial selection)" },
+    },
+    opts = {},
   },
 })
