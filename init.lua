@@ -470,7 +470,7 @@ require("lazy").setup({
       require("mason-lspconfig").setup({
         -- pyright for this Python project; lua_ls for editing this config.
         -- Add more here as needed: ts_ls, bashls, jsonls, yamlls, ...
-        ensure_installed = { "pyright", "lua_ls" },
+        ensure_installed = { "pyright", "lua_ls", "ts_ls" },
         -- automatic_enable is on by default: installed servers are enabled
         -- automatically, so no require("lspconfig").<server>.setup{} needed.
       })

@@ -31,26 +31,13 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 
 ## Shortcuts
 
-> Leader key is `<Space>`.
->
-> Rows marked **†** are **chord sequences**: press the keys one after another (tap and
-> release, then the next), *not* held down together. This matters most for the `Ctrl` `g` …
-> bindings — `Ctrl`+`g` is pressed and released first, then the following key. (Anything
-> starting with the `Space` leader is a sequence by nature and isn't separately marked.)
+> Leader key is `<Space>`. Anything starting with the `Space` leader is a chord sequence by
+> nature — press the keys one after another (tap and release, then the next), *not* held down
+> together. (See the **Git** section for the `Ctrl`+`g` chords, marked **†**.)
 
 | Keys | Action |
 | --- | --- |
 | `Space` `c` `r` | CodeRabbit code review |
-| `Ctrl` `g` `g` † | Git diff (VS Code-style diffview, toggle open/close) |
-| `Ctrl` `g` `↓` † | Jump to next git hunk (diff line below) |
-| `Ctrl` `g` `↑` † | Jump to previous git hunk (diff line above) |
-| `Space` `g` `b` | Toggle git blame panel (author + date per line; `Enter` in the panel opens the commit) |
-| `Space` `g` `l` | Blame the current line in a popup (full commit) |
-| `Space` `g` `p` | Preview the git hunk under the cursor |
-| `Space` `g` `s` | Stage the hunk under the cursor |
-| `Space` `g` `r` | Reset the hunk under the cursor |
-| `Space` `g` `d` | Diff the current file |
-| `]` `c` / `[` `c` | Jump to next / previous git hunk |
 | `Ctrl` `p` | Open file (fuzzy finder) |
 | `Alt` `i` | Toggle ignored/hidden files in the file search |
 | `Ctrl` `b` | Toggle file tree side panel |
@@ -64,6 +51,24 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Space` `d` `d` | Hatch a duck 🦆 (press a few times for a flock) |
 | `Space` `d` `k` | Cook (remove) the most recent duck |
 | `Space` `v` `s` | Open the vi-sql database TUI |
+
+### Git
+
+> Rows marked **†** are **chord sequences**: press `Ctrl`+`g` (tap and release), *then* the
+> following key — *not* held down together.
+
+| Keys | Action |
+| --- | --- |
+| `Ctrl` `g` `g` † | Git diff (VS Code-style diffview, toggle open/close) |
+| `Ctrl` `g` `↓` † | Jump to next git hunk (diff line below) |
+| `Ctrl` `g` `↑` † | Jump to previous git hunk (diff line above) |
+| `Space` `g` `b` | Toggle git blame panel (author + date per line; `Enter` in the panel opens the commit) |
+| `Space` `g` `l` | Blame the current line in a popup (full commit) |
+| `Space` `g` `p` | Preview the git hunk under the cursor |
+| `Space` `g` `s` | Stage the hunk under the cursor |
+| `Space` `g` `r` | Reset the hunk under the cursor |
+| `Space` `g` `d` | Diff the current file |
+| `]` `c` / `[` `c` | Jump to next / previous git hunk |
 
 ### LSP (code navigation)
 
