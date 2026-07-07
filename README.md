@@ -27,6 +27,7 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | [r4ppz/lspeek.nvim](https://github.com/r4ppz/lspeek.nvim) | Peek LSP definitions in a floating window (`gd`); press `gd` again to open at the far edge. |
 | [smnatale/coderabbit.nvim](https://github.com/smnatale/coderabbit.nvim) | AI code review via the CodeRabbit CLI; findings surface as diagnostics. |
 | [kopecmaciej/vi-sql.nvim](https://github.com/kopecmaciej/vi-sql.nvim) | SQL database TUI in a floating terminal (`:ViSQL`). |
+| [SunnyTamang/select-undo.nvim](https://github.com/SunnyTamang/select-undo.nvim) | Undo only the changes inside a visual selection (`gu` / `gcu`) instead of whole change-steps; persistent undo history. |
 
 
 ## Shortcuts
@@ -51,6 +52,10 @@ A single-file Neovim setup (`init.lua`) built around [lazy.nvim](https://github.
 | `Space` `d` `d` | Hatch a duck 🦆 (press a few times for a flock) |
 | `Space` `d` `k` | Cook (remove) the most recent duck |
 | `Space` `v` `s` | Open the vi-sql database TUI |
+| `Space` `m` `v` | Preview the current markdown file with `glow` in a floating terminal |
+| `Ctrl` `v` `v` † | Preview markdown with `glow` (same as above; `Ctrl`+`v` then `v` — waits `timeoutlen` before falling back to blockwise-visual `Ctrl`+`v`) |
+| `g` `u` (visual) | Undo only the changes in the selected lines (select-undo) |
+| `g` `c` `u` (visual) | Undo only the changes in a partial character selection (select-undo) |
 
 ### Git
 
