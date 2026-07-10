@@ -120,6 +120,52 @@ end
 vim.keymap.set("n", "<leader>mv", glow_preview, { silent = true, desc = "Preview markdown with glow" })
 vim.keymap.set("n", "<C-v>v",     glow_preview, { silent = true, desc = "Preview markdown with glow" })
 
+-- New (unnamed) file that asks where to save on the first :w / :wq. The prompt
+-- is prefilled with the current file's parent directory and Tab-completes paths,
+-- so you type just the filename. open_cmd decides where the buffer lands:
+--   "enew" current window | "vnew" vertical split | "new" horizontal split.
+-- The BufWriteCmd hijacks the very first write to run the prompt, adopts the
+-- chosen name, then deletes itself so later writes behave like any other file.
+-- We write with `noautocmd` so the takeover doesn't recurse, then fire
+-- BufWritePost by hand so formatters/linters/git still react.
+local function new_file_here(open_cmd)
+  local dir = vim.fn.expand("%:p:h")
+  if dir == "" then dir = vim.fn.getcwd() end
+  vim.cmd(open_cmd)
+  local buf = vim.api.nvim_get_current_buf()
+  local id
+  id = vim.api.nvim_create_autocmd("BufWriteCmd", {
+    buffer = buf,
+    desc = "Prompt for the save location of a new file",
+    callback = function()
+      local path = vim.fn.input("Save as: ", dir .. "/", "file")
+      vim.cmd("redraw")
+      if path == "" then
+        vim.notify("Save cancelled", vim.log.levels.WARN)
+        return
+      end
+      path = vim.fn.fnamemodify(path, ":p")
+      vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")   -- create parent dirs
+      vim.cmd("keepalt noautocmd write " .. vim.fn.fnameescape(path))
+      vim.cmd("keepalt file " .. vim.fn.fnameescape(path))
+      vim.bo[buf].modified = false
+      vim.api.nvim_del_autocmd(id)                         -- writes are normal now
+      vim.api.nvim_exec_autocmds("BufWritePost", { buffer = buf })
+    end,
+  })
+end
+
+-- <C-n> in the current window; the <C-v>/<C-x> chords open into a split. Both
+-- n and N are bound (after the Ctrl key the follow-up is a plain letter, so the
+-- shifted N is a distinct keystroke). Like <C-v>v above, these chords make the
+-- lone <C-v> (visual-block) and <C-x> (decrement) wait one 'timeoutlen' for a
+-- follow-up before falling back to their defaults.
+vim.keymap.set("n", "<C-n>",  function() new_file_here("enew") end, { silent = true, desc = "New file (prompt to save)" })
+vim.keymap.set("n", "<C-v>n", function() new_file_here("vnew") end, { silent = true, desc = "New file in vertical split (prompt to save)" })
+vim.keymap.set("n", "<C-v>N", function() new_file_here("vnew") end, { silent = true, desc = "New file in vertical split (prompt to save)" })
+vim.keymap.set("n", "<C-x>n", function() new_file_here("new")  end, { silent = true, desc = "New file in horizontal split (prompt to save)" })
+vim.keymap.set("n", "<C-x>N", function() new_file_here("new")  end, { silent = true, desc = "New file in horizontal split (prompt to save)" })
+
 -- Bootstrap glow: keep a private copy of the CLI in nvim's data dir (no sudo)
 -- and prepend it to PATH so :terminal jobs find it. If it's missing, download the
 -- latest prebuilt release binary in the background on startup; the preview works
@@ -227,6 +273,35 @@ vim.opt.fillchars:append({
 -- leaves StatusLine with no background).
 vim.opt.laststatus = 3
 
+-- Git branch on the (global) statusline. The old shell statusbar used to show
+-- the branch by bleeding through nvim's bottom row (a leaked scroll region that
+-- also shifted nvim-tree up by one line); now that nvim owns the full screen,
+-- the branch lives here instead, in the same amber (#d6b27a) as that shell bar.
+-- gitsigns exposes the current branch as b:gitsigns_head. The highlight is
+-- re-asserted on ColorScheme so it survives guts reloading (guts defines no
+-- StatusLineBranch group), matching how make_transparent re-applies above.
+local function set_branch_hl()
+  vim.api.nvim_set_hl(0, "StatusLineBranch", { fg = "#d6b27a", bg = "NONE" })
+end
+vim.api.nvim_create_autocmd("ColorScheme", { callback = set_branch_hl })
+set_branch_hl()
+
+function _G.StatusLineGitBranch()
+  local head = vim.b.gitsigns_head
+  if head and head ~= "" then
+    return "  " .. head .. " "   --  = U+E0A0 powerline branch glyph (nerd font)
+  end
+  return ""
+end
+
+-- Branch (amber) + the usual default items: file, flags, then position at right.
+vim.opt.statusline = table.concat({
+  "%#StatusLineBranch#%{v:lua.StatusLineGitBranch()}%#StatusLine#",
+  " %<%f %h%m%r",
+  "%=",
+  "%-14.(%l,%c%V%) %P ",
+})
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
@@ -279,6 +354,26 @@ require("lazy").setup({
         indent = { enable = true },
       })
     end,
+  },
+
+  -- Sticky context: pins the enclosing function/class/method (and any parent
+  -- scope) to the top of the window while you scroll, so the signature you're
+  -- reading stays visible after it scrolls off. Because the transparent theme
+  -- leaves these rows with no background to set them apart, a separator line is
+  -- drawn under the context instead. <leader>cx jumps up to the context line.
+  {
+    "nvim-treesitter/nvim-treesitter-context",
+    event = { "BufReadPre", "BufNewFile" },
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    keys = {
+      { "<leader>cx", function() require("treesitter-context").go_to_context() end, desc = "Jump to context (function/class)" },
+    },
+    opts = {
+      max_lines = 4,             -- cap the sticky header so it can't eat the window
+      multiline_threshold = 1,   -- collapse a multi-line signature to its first line
+      separator = "─",           -- underline the context (readable on the transparent bg)
+      trim_scope = "outer",      -- if over max_lines, drop the outermost scopes first
+    },
   },
 
   -- smart-paste: pasted code lands at the correct indent level automatically.
