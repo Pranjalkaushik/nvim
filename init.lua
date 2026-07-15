@@ -55,10 +55,33 @@ end
 -- auto-select an entry, fuzzy-match the typed text, and show a doc popup beside it.
 vim.opt.completeopt = { "menuone", "noselect", "fuzzy", "popup" }
 
+-- Spell checking. spelllang picks the dictionary; spellsuggest caps how many
+-- corrections z= (and the blink "Spell" completion source below) offer. Spell is
+-- turned ON per-buffer only for prose filetypes via the FileType autocmd, so code
+-- isn't flagged wholesale — but inside code, treesitter still marks comments and
+-- strings as spell regions, and toggling :set spell there works too. The blink
+-- spell source keys off vim.wo.spell, so :set spell / :set nospell enables or
+-- disables the whole feature (underlines + Tab-completion corrections) together.
+vim.opt.spelllang = "en_us"
+vim.opt.spellsuggest = "best,9"
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "markdown", "text", "gitcommit", "gitrebase", "rst", "tex" },
+  callback = function() vim.opt_local.spell = true end,
+})
+
 vim.keymap.set("n", "<C-Up>",    "<C-w>k", { silent = true })  -- up
 vim.keymap.set("n", "<C-Down>",  "<C-w>j", { silent = true })  -- down
 vim.keymap.set("n", "<C-Left>",  "<C-w>h", { silent = true })  -- left
 vim.keymap.set("n", "<C-Right>", "<C-w>l", { silent = true })  -- right
+
+-- Search only within the visual selection: select some text, press / (or ?),
+-- then type your pattern -- matches are confined to what was selected. Works via
+-- the \%V atom (":help /\\%V"), which matches inside the Visual area; even after
+-- <Esc> drops Visual mode it targets the region `gv` would reselect. The <Esc>
+-- ends the selection so the following /... is a normal search prompt seeded with
+-- \%V. Press n/N as usual; matches outside the block simply won't be found.
+vim.keymap.set("x", "/", "<Esc>/\\%V", { desc = "Search within visual selection" })
+vim.keymap.set("x", "?", "<Esc>?\\%V", { desc = "Search backward within visual selection" })
 
 -- Show the full diagnostic message (the E/W sign in the gutter) for the current
 -- line in a floating window. Default config shows only the sign + underline, not
@@ -448,6 +471,20 @@ require("lazy").setup({
         sources = {
           files = { hidden = true, ignored = true },
           smart = { hidden = true, ignored = true },
+          -- <C-p> opens the `smart` picker, a multi-source of buffers+recent+files.
+          -- snacks resolves multi pickers by re-merging EACH member's win keys on
+          -- top of everything else, last, with the member winning (see
+          -- snacks/picker/config/init.lua M.multi). The buffers member ships
+          -- <c-x> -> bufdelete, so it clobbered the global <c-x> -> edit_split (set
+          -- in win below) — that's why the split key worked in grep but not <C-p>.
+          -- No smart-level override can win against that late merge, so we retune
+          -- the buffers source itself: <c-x> opens a split (matching every other
+          -- picker), and buffer deletion stays on `dd` in the list (its default).
+          buffers = {
+            win = {
+              input = { keys = { ["<c-x>"] = { "edit_split", mode = { "i", "n" } } } },
+            },
+          },
         },
         -- snacks opens splits with <C-s> (horizontal) / <C-v> (vertical) by
         -- default. Add <C-x> -> horizontal split too (Telescope/VS Code muscle
@@ -482,13 +519,17 @@ require("lazy").setup({
       { "<C-p>", function() require("snacks").picker.smart() end, desc = "Find files (smart)" },
       { "<leader>ff", function() require("snacks").picker.files() end, desc = "Find files" },
       -- Search for a term across the project directory (live grep via ripgrep).
-      -- In-prompt filtering (snacks parses everything after " -- " as raw rg flags):
+      -- In-prompt filtering: snacks inserts everything after " -- " into the rg
+      -- command BEFORE the "-- <pattern>" separator, so only FLAG-form filters
+      -- work. A bare positional path (e.g. `foo -- db/`) does NOT work: rg ends up
+      -- as `rg db/ -- foo`, treating `db/` as the pattern and `foo` as a path.
+      -- Use glob flags instead; globs are relative to the picker's cwd:
       --   foo -- -g=*.lua            only .lua files
       --   foo -- -t py               only Python (rg filetype; see `rg --type-list`)
       --   foo -- -g=!*.test.js       exclude test files
-      --   foo -- db/                 restrict to a folder (positional path — simplest)
-      --   foo -- -g=db/**            restrict to a folder via glob (note: -g=db/ alone matches nothing)
-      --   foo -- -g=*.{ts,tsx} src/  combine extension + folder
+      --   foo -- -g=db/**            restrict to a folder (note: -g=db/ alone matches nothing)
+      --   foo -- -g=*.{ts,tsx} -g=src/**  combine extension + folder
+      -- To scope to a real directory path, use <leader>fG or pass dirs=... instead.
       { "<leader>fg", function() require("snacks").picker.grep() end, desc = "Grep in project" },
       { "<leader>/", function() require("snacks").picker.grep() end, desc = "Grep in project" },
       -- Grep scoped to the current file's directory (handy quick folder filter).
@@ -597,7 +638,7 @@ require("lazy").setup({
   -- Rust/cargo toolchain is required to build it.
   {
     "saghen/blink.cmp",
-    dependencies = { "rafamadriz/friendly-snippets" },
+    dependencies = { "rafamadriz/friendly-snippets", "ribru17/blink-cmp-spell" },
     version = "1.*",
     event = { "InsertEnter", "CmdlineEnter" },
     ---@module 'blink.cmp'
@@ -622,7 +663,42 @@ require("lazy").setup({
           treesitter_highlighting = false,
         },
       },
-      sources = { default = { "lsp", "path", "snippets", "buffer" } },
+      sources = {
+        default = { "lsp", "path", "snippets", "buffer", "spell" },
+        providers = {
+          -- Spelling corrections from Neovim's spellsuggest, shown inline in the
+          -- same completion menu. Navigate with <Tab>/<S-Tab> and accept with
+          -- <Tab> (super-tab preset above) — no separate keymap to learn.
+          -- enable_in_context gates it so it only fires where spell checking is
+          -- meaningful: the window must have :set spell, and (when treesitter
+          -- knows the buffer) the cursor must be in a @spell region — i.e. all
+          -- prose in markdown/text, but only comments/strings in code, never on
+          -- code identifiers. Falls back to the buffer spell flag when there's no
+          -- treesitter parser (plain `text` files).
+          spell = {
+            name = "Spell",
+            module = "blink-cmp-spell",
+            opts = {
+              max_entries = 9,
+              preselect_correct_word = true,
+              enable_in_context = function()
+                if not vim.wo.spell then return false end
+                local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+                local ok, captures = pcall(
+                  vim.treesitter.get_captures_at_pos, 0, row - 1, math.max(col - 1, 0)
+                )
+                if not ok or #captures == 0 then return true end
+                local in_spell = false
+                for _, cap in ipairs(captures) do
+                  if cap.capture == "nospell" then return false end
+                  if cap.capture == "spell" then in_spell = true end
+                end
+                return in_spell
+              end,
+            },
+          },
+        },
+      },
       -- Use the prebuilt Rust matcher; fall back to the Lua one (with a warning)
       -- if the binary is unavailable.
       fuzzy = { implementation = "prefer_rust_with_warning" },
