@@ -433,6 +433,21 @@ require("lazy").setup({
         on_attach = my_on_attach,
         view = { width = 30, side = "left" },
         actions = { open_file = { quit_on_open = false } },
+        -- Follow the buffer you're editing: on BufEnter the tree expands the
+        -- folders down to that file and parks its cursor on it, so the sidebar
+        -- always shows where you are. update_root is off so jumping to a file
+        -- outside the project (a plugin source, a $VIMRUNTIME doc) doesn't
+        -- silently re-root the tree away from the project.
+        update_focused_file = {
+          enable = true,
+          update_root = { enable = false },
+        },
+        renderer = {
+          -- Bold the name of any file that's open in a buffer, so the followed
+          -- file stays visible even after the cursor moves elsewhere in the tree.
+          highlight_opened_files = "name",
+          highlight_modified = "name",
+        },
       })
 
       -- Toggle the file tree side panel (VS Code-style sidebar).
